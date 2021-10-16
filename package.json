@@ -1,0 +1,22 @@
+{
+  "name": "flickr-set-manager",
+  "version": "1.0.0",
+  "description": "Manage photosets on Flickr based on keywords and photo dates",
+  "main": "auth.js",
+  "scripts": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wwarby/flickr-set-manager.git"
+  },
+  "author": "William Warby",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/wwarby/flickr-set-manager/issues"
+  },
+  "homepage": "https://github.com/wwarby/flickr-set-manager#readme",
+  "dependencies": {
+    "chalk": "^4.1.2",
+    "flickr-sdk": "^3.10.0",
+    "lodash": "^4.17.21"
+  }
+}

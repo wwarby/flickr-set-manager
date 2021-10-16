@@ -16,7 +16,7 @@ const oauth = new Flickr.OAuth(config.apiKey, config.apiSecret);
     const username = (await flickr.test.login()).body?.user?.username?._content || config.userNsid;
 
     photosets.forEach(x => {
-      x.tag = x.keyword.replace(/[^a-zA-Z0-9]+/, '');
+      x.tag = x.keyword.replace(/[^a-zA-Z0-9]+/g, '');
       x.primaryKeyword = `${x.keyword}-primary`;
       x.primaryTag = `${x.tag}primary`;
     });
@@ -75,6 +75,8 @@ const oauth = new Flickr.OAuth(config.apiKey, config.apiSecret);
         if (!photoset.primaryPhotoId) {
           console.warn(`${chalk.bgRedBright('WARNING')}: No primary photo for ${chalk.cyan(photoset.title)} by keyword ${chalk.magenta(photoset.primaryKeyword)}`);
           photoset.primaryPhotoId = photoset.targetPhotos.find(_ => true)?.id;
+        } else if (photoset.targetPhotos.filter(x => x.tags.includes(`${photoset.primaryTag}`)).length) {
+          console.warn(`${chalk.bgRedBright('WARNING')}: Multiple photos for ${chalk.cyan(photoset.title)} keyworded with ${chalk.magenta(photoset.primaryKeyword)}`);
         }
 
         if (!photoset.remote) {
@@ -87,16 +89,16 @@ const oauth = new Flickr.OAuth(config.apiKey, config.apiSecret);
           console.log(`${chalk.yellow('Created')} ${chalk.cyan(photoset.title)} at https://www.flickr.com/photos/${username}/albums/${photoset.remote.id}`);
         }
 
-        if (photoset.currentPhotos?.map(x => x.id).sort().join(',') !== photoset.targetPhotos?.map(x => x.id).sort().join(',')) {
+        if (photoset.currentPhotos?.map(x => x.id).sort().join(',') !== photoset.targetPhotos?.map(x => x.id).sort().join(',') || photoset.primaryPhotoId !== photoset.remote?.primary) {
           await flickr.photosets.editPhotos({
             photoset_id: photoset.remote.id,
             photo_ids: photoset.targetPhotos.map(x => x.id).join(','),
             primary_photo_id: photoset.primaryPhotoId
           });
           if (photoset.created) {
-            console.log(`${chalk.yellow('Updated')} ${chalk.cyan(photoset.title)} with ${chalk.yellow(photoset.targetPhotos.length)} photos (previously contained ${chalk.red(photoset.currentPhotos?.length || 0)})`);
-          } else {
             console.log(`${chalk.yellow('Added')} to ${chalk.yellow(photoset.targetPhotos.length)} photos new photoset ${chalk.cyan(photoset.title)}`);
+          } else {
+            console.log(`${chalk.yellow('Updated')} ${chalk.cyan(photoset.title)} with ${chalk.yellow(photoset.targetPhotos.length)} photos (previously contained ${chalk.red(photoset.currentPhotos?.length || 0)})`);
           }
         } else {
           console.log(`No update necessary for ${chalk.cyan(photoset.title)}`);

@@ -17,8 +17,8 @@ const oauth = new Flickr.OAuth(config.apiKey, config.apiSecret);
 
     photosets.forEach(x => {
       x.tag = x.keyword.replace(/[^a-zA-Z0-9]+/g, '');
-      x.primaryKeyword = `${x.keyword}-primary`;
-      x.primaryTag = `${x.tag}primary`;
+      x.primaryKeyword = x.primaryKeyword || `${x.keyword}-primary`;
+      x.primaryTag = x.primaryKeyword.replace(/[^a-zA-Z0-9]+/g, '') || `${x.tag}primary`;
     });
 
     const remotePhotosets = (await depaginate(flickr.photosets.getList.bind(flickr.photosets), {
@@ -55,6 +55,7 @@ const oauth = new Flickr.OAuth(config.apiKey, config.apiSecret);
         photoset.targetPhotos = (await depaginate(flickr.photos.search.bind(flickr.photos), {
           user_id: config.userNsid,
           tags: photoset.keyword,
+          tag_mode: photoset.tagMode || 'any',
           extras: 'tags',
           sort: photoset.sort || 'date-taken-desc',
           min_taken_date: photoset.minDate,
@@ -126,7 +127,9 @@ async function depaginate(fn, params, root, branch) {
   let end = parseInt(results[root].page, 10) === parseInt(results[root].pages, 10);
   while (!end) {
     params.page++;
-    results[root][branch] = results[root][branch].concat((await fn(params)).body[branch]);
+    const pageResults = (await fn(params)).body;
+    results[root][branch] = results[root][branch].concat(pageResults[root][branch]);
+    end = parseInt(pageResults[root].page, 10) >= parseInt(pageResults[root].pages, 10);
   }
   return results[root][branch];
 }

@@ -16,6 +16,7 @@
   "homepage": "https://github.com/wwarby/flickr-set-manager#readme",
   "dependencies": {
     "chalk": "^4.1.2",
+    "comma-number": "^2.1.0",
     "flickr-sdk": "^3.10.0",
     "lodash": "^4.17.21"
   }

@@ -4,6 +4,7 @@ const fs = require('fs');
 const Flickr = require('flickr-sdk');
 const _ = require('lodash');
 const chalk = require('chalk');
+const commaNumber = require('comma-number')
 
 const config = JSON.parse(fs.readFileSync('appsettings.json'));
 const photosets = JSON.parse(fs.readFileSync('photosets.json'));
@@ -48,7 +49,6 @@ const oauth = new Flickr.OAuth(config.apiKey, config.apiSecret);
             user_id: config.userNsid,
             extras: 'tags'
           }, 'photoset', 'photo')) || [];
-          console.log(`${chalk.yellow(photoset.currentPhotos.length)} current photos found in ${chalk.cyan(photoset.title)}`);
         }
 
         // Get matched photos for set, and primary photo ID
@@ -57,7 +57,7 @@ const oauth = new Flickr.OAuth(config.apiKey, config.apiSecret);
           tags: photoset.keyword,
           tag_mode: photoset.tagMode || 'any',
           extras: 'tags',
-          sort: photoset.sort || 'date-taken-desc',
+          sort: photoset.sort || 'date-taken-asc',
           min_taken_date: photoset.minDate,
           max_taken_date: photoset.maxDate
         }, 'photos', 'photo')) || [];
@@ -70,13 +70,12 @@ const oauth = new Flickr.OAuth(config.apiKey, config.apiSecret);
           return;
         }
 
-        console.log(`${chalk.yellow(photoset.targetPhotos.length)} photos matched for ${chalk.cyan(photoset.title)} by keyword ${chalk.magenta(photoset.keyword)}${photoset.minDate ? `, after ${chalk.magenta(photoset.minDate)}` : ''}${photoset.maxDate ? `, before ${chalk.magenta(photoset.maxDate)}` : ''}`);
         photoset.primaryPhotoId = photoset.targetPhotos.find(x => x.tags.includes(`${photoset.primaryTag}`))?.id;
 
         if (!photoset.primaryPhotoId) {
           console.warn(`${chalk.bgRedBright('WARNING')}: No primary photo for ${chalk.cyan(photoset.title)} by keyword ${chalk.magenta(photoset.primaryKeyword)}`);
           photoset.primaryPhotoId = photoset.targetPhotos.find(_ => true)?.id;
-        } else if (photoset.targetPhotos.filter(x => x.tags.includes(`${photoset.primaryTag}`)).length) {
+        } else if (photoset.targetPhotos.filter(x => x.tags.includes(`${photoset.primaryTag}`)).length > 1) {
           console.warn(`${chalk.bgRedBright('WARNING')}: Multiple photos for ${chalk.cyan(photoset.title)} keyworded with ${chalk.magenta(photoset.primaryKeyword)}`);
         }
 
@@ -87,8 +86,7 @@ const oauth = new Flickr.OAuth(config.apiKey, config.apiSecret);
             description: photoset.description || '',
             primary_photo_id: photoset.primaryPhotoId
           })).body.photoset;
-          console.log(`${chalk.yellow('Created')} ${chalk.cyan(photoset.title)} at https://www.flickr.com/photos/${username}/albums/${photoset.remote.id}`);
-        }
+       }
 
         if (photoset.currentPhotos?.map(x => x.id).sort().join(',') !== photoset.targetPhotos?.map(x => x.id).sort().join(',') || photoset.primaryPhotoId !== photoset.remote?.primary) {
           await flickr.photosets.editPhotos({
@@ -97,20 +95,23 @@ const oauth = new Flickr.OAuth(config.apiKey, config.apiSecret);
             primary_photo_id: photoset.primaryPhotoId
           });
           if (photoset.created) {
-            console.log(`${chalk.yellow('Added')} to ${chalk.yellow(photoset.targetPhotos.length)} photos new photoset ${chalk.cyan(photoset.title)}`);
+            console.log(`${chalk.cyan(photoset.title)} ${chalk.green('created')} with ${chalk.yellow(commaNumber(photoset.targetPhotos.length))} photo${photoset.targetPhotos.length !== 0 ? 's' : ''}`);
           } else {
-            console.log(`${chalk.yellow('Updated')} ${chalk.cyan(photoset.title)} with ${chalk.yellow(photoset.targetPhotos.length)} photos (previously contained ${chalk.red(photoset.currentPhotos?.length || 0)})`);
+            const change = photoset.currentPhotos?.length !== photoset.targetPhotos.length
+              ? `from ${chalk.red(commaNumber(photoset.currentPhotos?.length || 0))} to ${chalk.yellow(commaNumber(photoset.targetPhotos.length))} photo${photoset.targetPhotos.length !== 0 ? 's' : ''}`
+              : 'with new primary photo';
+            console.log(`${chalk.cyan(photoset.title)} ${chalk.yellow('updated')} ${change}`);
           }
         } else {
-          console.log(`No update necessary for ${chalk.cyan(photoset.title)}`);
+          console.log(chalk.dim(`${chalk.cyan(photoset.title)} unchanged`));
         }
       }));
     }
 
-    console.log(`Sorting ${chalk.yellow(photosets.filter(x => x.remote).length)} sets on Flickr`);
     await flickr.photosets.orderSets({
       photoset_ids: photosets.filter(x => x.remote).map(x => x.remote.id).join(',')
     });
+    console.log(`Re-ordered ${chalk.yellow(commaNumber(photosets.filter(x => x.remote).length))} set${photosets.length !== 0 ? 's' : ''} on Flickr`);
 
     console.log(chalk.green('DONE!'));
   } catch (e) {
